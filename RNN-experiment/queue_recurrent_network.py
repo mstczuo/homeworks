@@ -40,12 +40,12 @@ n_classes = 10 # MNIST total classes (0-9 digits)
 #y = tf.placeholder("float", [None, n_classes])
 
 queue = tf.FIFOQueue(capacity = batch_size * 2, dtypes = [tf.float32, tf.int32], shapes=[[784], [10]])
-
 enqueue_op = queue.enqueue_many([mnist.train.images,mnist.train.labels])
-
 x, y = queue.dequeue_many(batch_size)
-
 x = tf.reshape(x, [batch_size, n_steps, n_input])
+
+qr = tf.train.QueueRunner(queue, [enqueue_op] * 1)
+tf.train.add_queue_runner(qr)
 
 # Define weights
 weights = {
@@ -87,22 +87,27 @@ accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
 # Initializing the variables
 init = tf.global_variables_initializer()
 
+coord = tf.train.Coordinator()
+
 # Launch the graph
 with tf.Session() as sess:
     sess.run(init)
     step = 1
+
+    enqueue_threads = qr.create_threads(sess, coord=coord, start=True)
+
     # Keep training until reach max iterations
     while step * batch_size < training_iters:
-        batch_x, batch_y = mnist.train.next_batch(batch_size)
+        #batch_x, batch_y = mnist.train.next_batch(batch_size)
         # Reshape data to get 28 seq of 28 elements
-        batch_x = batch_x.reshape((batch_size, n_steps, n_input))
+        #batch_x = batch_x.reshape((batch_size, n_steps, n_input))
         # Run optimization op (backprop)
-        sess.run(optimizer, feed_dict={x: batch_x, y: batch_y})
+        sess.run(optimizer)
         if step % display_step == 0:
             # Calculate batch accuracy
-            acc = sess.run(accuracy, feed_dict={x: batch_x, y: batch_y})
+            acc = sess.run(accuracy)
             # Calculate batch loss
-            loss = sess.run(cost, feed_dict={x: batch_x, y: batch_y})
+            loss = sess.run(cost)
             print("Iter " + str(step*batch_size) + ", Minibatch Loss= " + \
                   "{:.6f}".format(loss) + ", Training Accuracy= " + \
                   "{:.5f}".format(acc))
@@ -113,7 +118,9 @@ with tf.Session() as sess:
     test_len = 128
     test_data = mnist.test.images[:test_len].reshape((-1, n_steps, n_input))
     test_label = mnist.test.labels[:test_len]
-    print("Testing Accuracy:", \
-        sess.run(accuracy, feed_dict={x: test_data, y: test_label}))
+    print("Testing Accuracy:", sess.run(accuracy))
+
+coord.request_stop()
+coord.join(threads)
 
 
