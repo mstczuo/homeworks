@@ -44,8 +44,8 @@ enqueue_op = queue.enqueue_many([mnist.train.images,mnist.train.labels])
 x, y = queue.dequeue_many(batch_size)
 x = tf.reshape(x, [batch_size, n_steps, n_input])
 
-qr = tf.train.QueueRunner(queue, [enqueue_op] * 1)
-tf.train.add_queue_runner(qr)
+qr = tf.train.QueueRunner(queue, [enqueue_op] * 4)
+coord = tf.train.Coordinator()
 
 # Define weights
 weights = {
@@ -86,8 +86,6 @@ accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
 
 # Initializing the variables
 init = tf.global_variables_initializer()
-
-coord = tf.train.Coordinator()
 
 # Launch the graph
 with tf.Session() as sess:
